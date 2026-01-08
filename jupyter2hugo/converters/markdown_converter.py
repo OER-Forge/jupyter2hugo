@@ -20,7 +20,10 @@ class MarkdownConverter:
         'hint': 'admonition',
         'important': 'admonition',
         'admonition': 'admonition',
+        'dropdown': 'details',
+        'toggle': 'details',
         'figure': 'figure',
+        'bibliography': 'bibliography',
     }
 
     def convert(self, markdown_content: str) -> Tuple[str, Dict[str, Any]]:
@@ -72,8 +75,8 @@ class MarkdownConverter:
         # Content here
         # :::
 
-        # Simpler, more robust pattern
-        directive_pattern = r':::(?:\{([a-zA-Z-]+)\}|([a-zA-Z-]+))\s*([^\n]*)\n(.*?)\n:::'
+        # Pattern anchored to line boundaries to properly match multiline directives
+        directive_pattern = r'^:::[ ]*(?:\{([a-zA-Z-]+)\}|([a-zA-Z-]+))[ ]*([^\n]*)\n(.*?)\n:::[ ]*$'
 
         def replace_directive(match):
             directive_type = match.group(1) or match.group(2)
@@ -150,6 +153,17 @@ class MarkdownConverter:
 
                     param_str = ' '.join(params)
                     return f'{{{{< admonition {param_str} >}}}}\n{content}\n{{{{< /admonition >}}}}'
+
+                elif shortcode_type == 'details':
+                    # Convert dropdown/toggle to HTML details element
+                    # Hugo doesn't have a built-in shortcode for this, but HTML details works
+                    summary_text = title if title else "Click to expand"
+                    return f'<details>\n<summary>{summary_text}</summary>\n\n{content}\n</details>'
+
+                elif shortcode_type == 'bibliography':
+                    # Remove bibliography directive - Hugo typically uses different reference system
+                    # Just output the content without the directive wrapper
+                    return content
             else:
                 # Unknown directive - convert to HTML div for fallback
                 css_classes = f"directive {directive_type}"
@@ -166,21 +180,57 @@ class MarkdownConverter:
         markdown = re.sub(directive_pattern, replace_directive, markdown, flags=re.DOTALL | re.MULTILINE)
 
         # Also handle simpler format: ```{directive_type} title
-        simple_directive_pattern = r'```\{([a-zA-Z-]+)\}\s*([^\n]*)\n((?:(?!```).)*)\n```'
+        # Match 3 or more backticks to handle variants like `````
+        simple_directive_pattern = r'(`{3,})\{([a-zA-Z-]+)\}\s*([^\n]*)\n(.*?)\n\1'
 
         def replace_simple_directive(match):
-            directive_type = match.group(1)
-            title = match.group(2).strip()
-            content = match.group(3).strip()
+            # Group 1 is the backticks (for matching closing), group 2 is directive_type
+            directive_type = match.group(2)
+            title = match.group(3).strip()
+            full_content = match.group(4).strip()
 
             if directive_type in self.DIRECTIVE_TYPES:
                 metadata['directives_converted'].append(directive_type)
-                params = [f'type="{directive_type}"']
-                if title:
-                    params.append(f'title="{title}"')
 
-                param_str = ' '.join(params)
-                return f'{{{{< admonition {param_str} >}}}}\n{content}\n{{{{< /admonition >}}}}'
+                # Parse options and content (same as main directive handler)
+                lines = full_content.split('\n')
+                options_dict = {}
+                content_lines = []
+
+                for line in lines:
+                    if line.strip().startswith(':') and ':' in line[1:]:
+                        # This is an option line
+                        parts = line.strip()[1:].split(':', 1)
+                        if len(parts) == 2:
+                            options_dict[parts[0].strip()] = parts[1].strip()
+                    else:
+                        content_lines.append(line)
+
+                content = '\n'.join(content_lines).strip()
+                css_class = options_dict.get('class', '')
+
+                # Get shortcode type and handle accordingly
+                shortcode_type = self.DIRECTIVE_TYPES[directive_type]
+
+                if shortcode_type == 'admonition':
+                    params = [f'type="{directive_type}"']
+                    if title:
+                        params.append(f'title="{title}"')
+                    if css_class:
+                        params.append(f'class="{css_class}"')
+                    param_str = ' '.join(params)
+                    return f'{{{{< admonition {param_str} >}}}}\n{content}\n{{{{< /admonition >}}}}'
+
+                elif shortcode_type == 'details':
+                    summary_text = title if title else "Click to expand"
+                    return f'<details>\n<summary>{summary_text}</summary>\n\n{content}\n</details>'
+
+                elif shortcode_type == 'bibliography':
+                    return content
+
+                else:
+                    # Fallback for other types
+                    return f'{{{{< {shortcode_type} >}}}}\n{content}\n{{{{< /{shortcode_type} >}}}}'
 
             # Fallback - treat as code block
             return match.group(0)
@@ -220,6 +270,11 @@ class MarkdownConverter:
 
         markdown = re.sub(image_directive_pattern, replace_image_directive, markdown, flags=re.DOTALL)
 
+        # Handle {tableofcontents} directive - remove it as Hugo uses menu system
+        # Match both ```{tableofcontents}``` and `````{tableofcontents}`````
+        toc_pattern = r'`{3,}\{tableofcontents\}\s*\n?`{3,}'
+        markdown = re.sub(toc_pattern, '', markdown)
+
         return markdown
 
     def _convert_cross_references(self, markdown: str) -> str:
@@ -235,6 +290,14 @@ class MarkdownConverter:
         markdown = re.sub(
             r'\{ref\}`([^`]+)`',
             lambda m: f'[{{{{< ref "{m.group(1)}" >}}}}]({{{{< ref "{m.group(1)}" >}}}})',
+            markdown
+        )
+
+        # Convert {cite}`key` to plain text citation (Hugo uses different citation system)
+        # Just convert to [key] format as a fallback
+        markdown = re.sub(
+            r'\{cite\}`([^`]+)`',
+            lambda m: f'[{m.group(1)}]',
             markdown
         )
 
