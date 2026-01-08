@@ -29,7 +29,7 @@ class HugoBuilder:
             verbose: Enable verbose logging
         """
         self.source_dir = source_dir
-        self.output_dir = output_dir / "hugo-site"
+        self.output_dir = output_dir
         self.verbose = verbose
 
         # Paths

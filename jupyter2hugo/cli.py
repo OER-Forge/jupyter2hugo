@@ -53,7 +53,7 @@ def main(source_dir: Path, output_dir: Path, check_accessibility: bool, verbose:
         click.secho("✓ Conversion completed successfully!", fg='green', bold=True)
         click.echo()
         click.echo("Next steps:")
-        click.echo(f"  1. cd {output_dir / 'hugo-site'}")
+        click.echo(f"  1. cd {output_dir}")
         click.echo("  2. hugo server")
         click.echo("  3. Visit http://localhost:1313")
         click.echo()
