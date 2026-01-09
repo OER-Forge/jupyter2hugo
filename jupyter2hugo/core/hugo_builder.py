@@ -64,8 +64,8 @@ class HugoBuilder:
         self.log("Step 3: Generating Hugo configuration...")
         self._generate_hugo_config()
 
-        # Step 4: Generate shortcodes and templates
-        self.log("Step 4: Generating Hugo shortcodes and templates...")
+        # Step 4: Generate shortcodes and KaTeX support
+        self.log("Step 4: Generating Hugo shortcodes and KaTeX support...")
         generate_shortcodes(self.layouts_dir)
         generate_templates(self.layouts_dir)
 
@@ -106,7 +106,7 @@ class HugoBuilder:
             self.log("  No _config.yml found, using defaults")
 
     def _init_hugo_structure(self):
-        """Create Hugo directory structure."""
+        """Create Hugo directory structure and initialize modules."""
         # Create main directories
         self.content_dir.mkdir(parents=True, exist_ok=True)
         self.static_dir.mkdir(parents=True, exist_ok=True)
@@ -116,6 +116,19 @@ class HugoBuilder:
         (self.static_dir / "images").mkdir(parents=True, exist_ok=True)
         (self.static_dir / "css").mkdir(parents=True, exist_ok=True)
         (self.layouts_dir / "shortcodes").mkdir(parents=True, exist_ok=True)
+
+        # Initialize Hugo modules
+        import subprocess
+        try:
+            subprocess.run(
+                ["hugo", "mod", "init", "example.com/site"],
+                cwd=self.output_dir,
+                capture_output=True,
+                check=True
+            )
+            self.log("  Initialized Hugo modules")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            self.log("  Warning: Could not initialize Hugo modules (hugo command not found)")
 
         self.log("  Created Hugo directory structure")
 
@@ -130,6 +143,13 @@ class HugoBuilder:
 languageCode = "{language}"
 title = "{title}"
 
+# Hugo theme configuration
+# Default: PaperMod (modern, accessible theme with ToC and WCAG support)
+# To change theme, replace with any Hugo theme module path
+[module]
+  [[module.imports]]
+    path = "github.com/adityatelange/hugo-PaperMod"
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
@@ -142,6 +162,12 @@ title = "{title}"
   author = "{author}"
   description = "{self.config.description if self.config and self.config.description else title}"
   math = true
+
+  # PaperMod theme configuration
+  ShowToc = true
+  TocOpen = false
+  ShowBreadCrumbs = true
+  ShowPostNavLinks = true
 
 # KaTeX configuration for math rendering
 [params.katex]

@@ -38,26 +38,66 @@ jupyter2hugo /path/to/jupyterbook/project /path/to/output --check-accessibility
 
 ## Output Structure
 
-The tool creates a `hugo-site/` directory in the output path with:
+The tool creates a Hugo site in the output path with:
 
 ```
-hugo-site/
+output/
 ├── config.toml              # Hugo configuration with KaTeX
 ├── content/                 # Converted pages
 ├── static/images/           # Images from source
-└── layouts/shortcodes/      # Hugo shortcodes for directives
+└── layouts/
+    ├── shortcodes/          # Hugo shortcodes for MyST directives
+    └── partials/            # KaTeX partials for math rendering
 ```
 
 ## Building the Hugo Site
 
-After conversion, build and serve the Hugo site:
+The converted site includes a **default theme** (PaperMod - modern and accessible with ToC) and is ready to use:
 
 ```bash
-cd /path/to/output/hugo-site
+cd /path/to/output
+
+# Download theme
+hugo mod tidy
+
+# Build and serve
 hugo server
 ```
 
-Visit http://localhost:1313 to view the site.
+Visit http://localhost:1313 to view your site.
+
+### Changing the Theme
+
+The site works with **any Hugo theme**. To change the default theme, edit `config.toml`:
+
+```toml
+[module]
+  [[module.imports]]
+    path = "github.com/THEME-AUTHOR/THEME-NAME"
+```
+
+**Popular theme options:**
+
+- **Documentation sites:**
+  - `github.com/adityatelange/hugo-PaperMod` - Modern, accessible with ToC (default)
+  - `github.com/alex-shpak/hugo-book` - Clean documentation theme
+  - `github.com/google/docsy` - Google's documentation theme
+  - `github.com/McShelby/hugo-theme-relearn` - Feature-rich documentation
+
+- **Academic/Research:**
+  - `github.com/wowchemy/wowchemy-hugo-themes` - Academic theme with publications support
+
+- **Blog/General:**
+  - `github.com/theNewDynamic/gohugo-theme-ananke` - Simple, clean
+
+- **Browse more:** [themes.gohugo.io](https://themes.gohugo.io/)
+
+After changing the theme:
+
+```bash
+hugo mod tidy    # Download new theme
+hugo server      # Rebuild and serve
+```
 
 ## Requirements
 
